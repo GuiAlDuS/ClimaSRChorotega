@@ -1,0 +1,99 @@
+---
+title: "EstaciÃ³n HIDROCEC"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+Establecimiento de directorio de trabajo.
+Importar librerÃ­as Ãºtiles
+```{r}
+
+setwd("~/Google Drive/RAnalisis/ClimaHIDROCEC")
+library(tidyverse)
+library(stringr)
+library(lubridate)
+```
+
+
+Lectura de archivos con datos climÃ¡ticos de estaciÃ³n Davis Vantage Pro2:
+```{r}
+datos1 <- read_csv("DatosUNA_2015-oct2016Completos.csv", skip=2, col_names = FALSE, 
+                   col_types = cols(.default = col_character()))
+datos2 <- read_tsv("Davis_HIDROCEC_Jun2016_Feb2017.txt", skip=2, col_names = FALSE, 
+                   col_types = cols(.default = col_character()))
+```
+
+Lectura de primeras dos filas y uniÃ³n en una sola. AdiciÃ³n de nueva fila creada como nombre de columna del data frame:
+```{r}
+header1 <- scan("DatosUNA_2015-oct2016Completos.csv", nlines = 1, what = character(), sep = ",") 
+header2 <- scan("DatosUNA_2015-oct2016Completos.csv", skip = 1, nlines = 1, what = character(), sep = ",") 
+names(datos1) <- paste0(header1, header2)
+
+
+header10 <- scan("Davis_HIDROCEC_Jun2016_Feb2017.txt", nlines = 1, what = character(), sep = "\t")
+header20 <- scan("Davis_HIDROCEC_Jun2016_Feb2017.txt", skip = 1, nlines = 1, what = character(), sep = "\t") 
+names(datos2) <- paste0(header10, header20)
+```
+
+Ahora a convertir las columnas a los tipos respectivos:
+```{r}
+datos1[datos1=="---"] <- NA
+datos1$Date <- as.Date((datos1$Date), format="%m/%d/%Y")
+datos1$Time <- parse_time(datos1$Time, "%I:%M %p")
+datos1_conv <- type_convert(datos1)
+
+datos2[datos2=="---"] <- NA
+datos2$Date <- as.Date((datos2$Date), format="%m/%d/%y")
+
+datos2$Time <- gsub("a", "AM", datos2$Time)
+datos2$Time <- gsub("p", "PM", datos2$Time)
+
+datos2$Time <- parse_time(datos2$Time, "%I:%M %p")
+datos2_conv <- type_convert(datos2)
+```
+
+Juntar tablas eliminando repetidas y **únicamente** con columnas similares:
+```{r}
+cols_com <- intersect(colnames(datos1), colnames(datos2))
+datos1_com <- subset(datos1, select = cols_com)
+datos2_com <- subset(datos2, select = cols_com)
+datos <- rbind(datos1_com, datos2_com)
+
+datos_unicos <- distinct(datos, Date, Time, .keep_all = TRUE)
+```
+
+Gráfico de lluvia por día:
+```{r}
+datos_unicos$Rain <- parse_double(datos_unicos$Rain)
+ggplot(datos_unicos, aes(Date, Rain)) + geom_point()
+
+lluvia_dia = datos_unicos %>% group_by(year(datos_unicos$Date), month(datos_unicos$Date), day(datos_unicos$Date)) %>% summarise(sum(Rain), Date = first(Date))
+
+colnames(lluvia_dia) <- c("year", "month", "day", "Rain", "Date")
+
+g1 = ggplot(lluvia_dia, aes(Date,Rain))
+g1 + geom_bar(stat = "identity")
+
+
+datos_unicos$year = year(datos_unicos$Date)
+datos_unicos = mutate(group_by(datos_unicos, year), cumRain = cumsum(Rain))
+
+datos_unicos$juliano = yday(datos_unicos$Date) #convertir a día juliano
+
+g6 = ggplot(datos_unicos, aes(juliano, cumRain, color = factor(year(Date))))
+g6 + geom_line() + ggtitle("Estación UNA Liberia") +
+  xlab("Día") + ylab("Precipitación acumulada (mm)") +
+  scale_color_discrete(name="Año")
+
+```
+
+
+Lectura de archivo de la estaciÃ³n de la UNA en Nicoya:
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).

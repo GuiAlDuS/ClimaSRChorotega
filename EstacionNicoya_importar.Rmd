@@ -1,0 +1,62 @@
+---
+title: "Estación Nicoya"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+setwd("~/Google Drive/RAnalisis/ClimaHIDROCEC")
+library(tidyverse)
+library(stringr)
+library(lubridate)
+```
+
+Cargando el archivo de texto de la estaci?n de Nicoya:
+```{r}
+datosNicoya <- read_csv("CEMEDE_VW_Hourly.dat", skip=4, col_names = FALSE, col_types = cols(.default = col_character()))
+```
+
+Lectura de header para colocar en los datos de Nicoya:
+```{r}
+header <- scan("CEMEDE_VW_Hourly.dat", skip = 1, nlines = 1, what = character(), sep = ",")
+names(datosNicoya) <- paste0(header)
+```
+
+Arreglar fechas y tipos de datos:
+```{r}
+datosNicoya$TIMESTAMP <- parse_datetime(datosNicoya$TIMESTAMP, format="%Y-%m-%d %H:%M:%S")
+datosNicoya$Rain_mm_Tot <- parse_double(datosNicoya$Rain_mm_Tot)
+```
+
+Graficos de lluvia:
+```{r}
+ggplot(datosNicoya, aes(TIMESTAMP,Rain_mm_Tot)) + geom_point()
+```
+
+Gráfico de precipitación acumulada:
+
+```{r}
+lluvia_dia = datosNicoya %>% group_by(year(datosNicoya$TIMESTAMP), month(datosNicoya$TIMESTAMP), day(datosNicoya$TIMESTAMP)) %>% summarise(sum(Rain_mm_Tot), Date = first(TIMESTAMP))
+
+colnames(lluvia_dia) <- c("year", "month", "day", "Rain", "Date")
+
+lluvia_dia = mutate(group_by(lluvia_dia, year), cumRain = cumsum(Rain))
+
+lluvia_dia$juliano = yday(lluvia_dia$Date) #convertir a dia juliano
+
+g = ggplot(lluvia_dia, aes(juliano, cumRain, color = factor(year)))
+g + geom_line() + ggtitle("Estación UNA Nicoya") +
+  xlab("Día") + ylab("Precipitación acumulada (mm)") +
+  scale_color_discrete(name="Año")
+
+```
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).

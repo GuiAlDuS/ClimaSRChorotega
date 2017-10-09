@@ -1,0 +1,90 @@
+---
+title: "Manejo de datos Estaci??n Meteorol??gica HIDROCEC"
+author: "Guillermo Dur??n Sanabria"
+date: "2/9/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Estacion meteorol?gica en HIDROCEC-UNA
+
+Establecer directorio de trabajo:
+```{r}
+setwd("~/Google Drive/RAnalisis/ClimaHIDROCEC")
+setwd("C:/Users/UNA/gds506@gmail.com/RAnalisis/ClimaHIDROCEC")
+```
+
+Librer??as utilizadas:
+```{r}
+library(lubridate)
+library(tidyverse)
+```
+
+Cargar en `datos #` archivo de la estaci?n meteorol?gica eliminando las dos primeras filas ya que son los encabezados:
+```{r}
+datos1 <- read.table("DatosUNA_2015-oct2016Completos.csv", skip=2, header = F, sep = ",")
+
+datos2 <- read.table("Davis_HIDROCEC_Jun2016_Feb2017.txt", skip=2, header = F, sep = "\t")
+```
+
+Separar las l?neas de encabezados:
+Encabezado de l?nea 1:
+```{r}
+header1 <- scan("DatosUNA_2015-oct2016Completos.csv", nlines = 1, what = character(), sep = ",") 
+
+header10 <- scan("Davis_HIDROCEC_Jun2016_Feb2017.txt", nlines = 1, what = character(), sep = "\t")
+```
+
+Encabezado de l?nea 2:
+```{r}
+header2 <- scan("DatosUNA_2015-oct2016Completos.csv", skip = 1, nlines = 1, what = character(), sep = ",") 
+
+header20 <- scan("Davis_HIDROCEC_Jun2016_Feb2017.txt", skip = 1, nlines = 1, what = character(), sep = "\t") 
+```
+
+Juntar ambos encabezados:
+```{r}
+names(datos1) <- paste0(header1, header2)
+
+names(datos2) <- paste0(header10, header20)
+```
+
+Establecer columnas de fecha y hora:
+```{r}
+datos1$Date2 <- as.POSIXct(paste(as.character(datos1$Date), (as.character(datos1$Time))), format="%m/%d/%Y %I:%M %p")
+
+datos2$Time <- gsub("a", "AM", datos2$Time)
+datos2$Time <- gsub("p", "PM", datos2$Time)
+
+datos2$Date2 <- as.POSIXct(paste(as.character(datos2$Date), (as.character(datos2$Time))), format="%m/%d/%y %I:%M %p")
+```
+
+Juntar tablas eliminando repetidas y **?nicamente** con columnas similares
+```{r}
+cols_com <- intersect(colnames(datos1), colnames(datos2))
+datos1_com <- subset(datos1, select = cols_com)
+datos2_com <- subset(datos2, select = cols_com)
+
+
+datos1_com[, c(2:11)] <- sapply(datos1_com[, c(2:11)], as.factor)
+
+
+
+
+
+
+datos <- union(datos1_com, datos2_com)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
